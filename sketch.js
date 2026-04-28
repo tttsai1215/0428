@@ -1,59 +1,76 @@
+// Hand Pose Detection with ml5.js
+// https://thecodingtrain.com/tracks/ml5js-beginners-guide/ml5/hand-pose
+
 let video;
-let classifier;
-let label = '模型載入中...'; // 儲存辨識結果標籤
+let handPose;
+let hands = [];
+
+function preload() {
+  // Initialize HandPose model with flipped video input
+  handPose = ml5.handPose({ flipped: true });
+}
+
+function mousePressed() {
+  console.log(hands);
+}
+
+function gotHands(results) {
+  hands = results;
+}
 
 function setup() {
-  // 建立全螢幕畫布
+  // 1. 產生一個全螢幕的畫布
   createCanvas(windowWidth, windowHeight);
-  
-  // 擷取攝影機影像
-  video = createCapture(VIDEO);
-  // 隱藏預設的 HTML 影片元素，因為我們只要在畫布上繪製它
+  video = createCapture(VIDEO, { flipped: true });
   video.hide();
 
-  // 使用 ml5.js 載入 MobileNet 影像分類模型
-  classifier = ml5.imageClassifier('MobileNet', video, modelReady);
-}
-
-function modelReady() {
-  // 模型準備就緒後開始辨識
-  classifier.classify(gotResult);
-}
-
-function gotResult(error, results) {
-  if (error) {
-    console.error(error);
-    return;
-  }
-  // 取得信心度最高（第一名）的辨識結果
-  label = results[0].label;
-  // 繼續不斷地進行下一次辨識
-  classifier.classify(gotResult);
+  // Start detecting hands
+  handPose.detectStart(video, gotHands);
 }
 
 function draw() {
-  // 設定畫布背景顏色為 #e7c6ff
+  // 2. 畫布的背景顏色設定為 #e7c6ff
   background('#e7c6ff');
-  
-  // 計算影像的寬高，為畫布寬高的 50%
-  let videoWidth = width * 0.5;
-  let videoHeight = height * 0.5;
-  
-  // 計算置中的 x, y 座標
-  let x = (width - videoWidth) / 2;
-  let y = (height - videoHeight) / 2;
-  
-  // 在畫布上繪製攝影機影像
-  image(video, x, y, videoWidth, videoHeight);
 
-  // 顯示影像辨識的結果
-  fill(0);
-  textSize(32);
-  textAlign(CENTER, CENTER);
-  text('辨識結果: ' + label, width / 2, y + videoHeight + 40);
+  // 3. 計算擷取影像的寬高，為畫布的 50%
+  let vw = width * 0.5;
+  let vh = height * 0.5;
+  // 計算影像置中所需的 x 與 y 座標
+  let x = (width - vw) / 2;
+  let y = (height - vh) / 2;
+
+  // 在置中位置畫出縮放後的影像
+  image(video, x, y, vw, vh);
+
+  // Ensure at least one hand is detected
+  if (hands.length > 0 && video.width > 0) {
+    // 計算辨識節點的縮放比例，以對齊縮放過後的影片
+    let scaleX = vw / video.width;
+    let scaleY = vh / video.height;
+
+    for (let hand of hands) {
+      if (hand.confidence > 0.1) {
+        // Loop through keypoints and draw circles
+        for (let i = 0; i < hand.keypoints.length; i++) {
+          let keypoint = hand.keypoints[i];
+
+          // Color-code based on left or right hand
+          if (hand.handedness == "Left") {
+            fill(255, 0, 255);
+          } else {
+            fill(255, 255, 0);
+          }
+
+          noStroke();
+          // 將節點座標位移並套用縮放比例，讓圓點精準畫在手部上
+          circle(x + keypoint.x * scaleX, y + keypoint.y * scaleY, 16);
+        }
+      }
+    }
+  }
 }
 
 function windowResized() {
-  // 當視窗縮放時，重新調整畫布大小
+  // 當瀏覽器視窗大小改變時，重新調整全螢幕畫布的尺寸
   resizeCanvas(windowWidth, windowHeight);
 }
