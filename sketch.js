@@ -6,6 +6,7 @@ let handPose;
 let hands = [];
 let webglSupported = false;
 let modelStatusMsg = "準備載入模型...";
+let bubbles = []; // 儲存水泡的陣列
 
 // 檢查瀏覽器是否支援 WebGL
 function checkWebGL() {
@@ -52,6 +53,12 @@ function modelLoaded() {
 function draw() {
   // 2. 畫布的背景顏色設定為 #e7c6ff
   background('#e7c6ff');
+
+  // 在畫布左上方顯示指定文字
+  fill(0);
+  textSize(24);
+  textAlign(LEFT, TOP);
+  text("123456789陳OO文字", 20, 20);
 
   // 在畫布上方顯示 WebGL 支援度與模型載入狀態
   fill(0);
@@ -109,6 +116,7 @@ function draw() {
         }
 
         // Loop through keypoints and draw circles
+        let fingertips = [4, 8, 12, 16, 20]; // 定義要產生水泡的指尖節點編號
         for (let i = 0; i < hand.keypoints.length; i++) {
           let keypoint = hand.keypoints[i];
 
@@ -120,10 +128,53 @@ function draw() {
           }
 
           noStroke();
+          // 計算實際在畫布上的 x, y 座標
+          let px = x + keypoint.x * scaleX;
+          let py = y + keypoint.y * scaleY;
+          
           // 將節點座標位移並套用縮放比例，讓圓點精準畫在手部上
-          circle(x + keypoint.x * scaleX, y + keypoint.y * scaleY, 16);
+          circle(px, py, 16);
+
+          // 針對指尖節點 (4, 8, 12, 16, 20)，機率性地產生水泡
+          if (fingertips.includes(i) && random(1) < 0.15) {
+            bubbles.push({
+              x: px,
+              y: py,
+              r: random(6, 15), // 水泡半徑
+              speed: random(2, 6), // 上升速度
+              popY: py - random(100, 350), // 水泡破裂的 Y 座標高度
+              wobble: random(0, TWO_PI) // 左右搖晃的起始相位
+            });
+          }
         }
       }
+    }
+  }
+
+  // 更新並繪製所有水泡
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    let b = bubbles[i];
+    
+    // 水泡往上飄，並加上左右微微搖晃的效果
+    b.y -= b.speed;
+    b.x += sin(b.wobble) * 1.5;
+    b.wobble += 0.1;
+    
+    // 繪製水泡
+    push();
+    stroke(255, 255, 255, 180);
+    strokeWeight(2);
+    fill(150, 200, 255, 80); // 微微透藍
+    circle(b.x, b.y, b.r * 2);
+    // 畫出水泡上的亮點反光
+    noStroke();
+    fill(255, 255, 255, 220);
+    circle(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.5);
+    pop();
+    
+    // 若水泡到達指定的破裂高度，或超出畫布上方，則將其破掉 (從陣列中移除)
+    if (b.y < b.popY || b.y < -b.r * 2) {
+      bubbles.splice(i, 1);
     }
   }
 }
